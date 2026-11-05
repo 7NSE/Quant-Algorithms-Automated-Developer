@@ -5,6 +5,12 @@ from .examples import (
     BollingerMeanReversion,
     VolatilityBreakout,
 )
+from .advanced import (
+    TrendFollowingVolTarget,
+    MultiFactorMomentum,
+    BreakoutWithFilter,
+    ResidualMeanReversion,
+)
 
 __all__ = [
     "Strategy",
@@ -12,4 +18,8 @@ __all__ = [
     "RSIMeanReversion",
     "BollingerMeanReversion",
     "VolatilityBreakout",
+    "TrendFollowingVolTarget",
+    "MultiFactorMomentum",
+    "BreakoutWithFilter",
+    "ResidualMeanReversion",
 ]

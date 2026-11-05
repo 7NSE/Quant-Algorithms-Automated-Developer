@@ -1,128 +1,114 @@
 # Quant Algorithms Automated Developer (QAAD)
 
-**Agentic AI system that automatically develops, evolves, backtests, and ranks quantitative trading algorithms.**
+**Agentic system that develops, backtests, scores and ranks quantitative trading algorithms.**
 
-It can also **score the sophistication / strength level** of any existing quant algo or trading bot and help you decide which ones are stronger.
-
-> Built for researchers and traders who want an automated quant research pipeline instead of writing every strategy by hand.
+It can also score the sophistication / strength of any existing quant algo or bot so you can see which ones are actually stronger.
 
 ---
 
-## What it does
+## What works right now
 
-| Capability | Description |
-|------------|-------------|
-| **Auto Strategy Generation** | Describe an idea in plain English → system generates executable Python strategy code |
-| **Evolutionary Search** | Multi-agent evolutionary framework that mutates & improves strategies |
-| **Backtesting Engine** | Vectorized + event-driven backtests with leakage controls |
-| **Algo Level / Strength Scoring** | Scores any algo/bot on a 0–100 scale across multiple dimensions |
-| **Ranking & Comparison** | Compare multiple strategies side-by-side and pick the strongest |
-| **Hypothesis → Code Pipeline** | Literature-inspired hypothesis generation → code → evaluation loop |
+| Module | Status | What it does |
+|--------|--------|--------------|
+| **Metrics engine** | Ready | Sharpe, Sortino, CAGR, MaxDD, Calmar, Profit Factor, Ulcer Index |
+| **Vectorized backtester** | Ready | Signal → equity curve + trade log with fees & slippage |
+| **Algo Level Scorer** | Ready | 0–100 score across Performance / Robustness / Risk / Sophistication / Implementation |
+| **Strategy base + examples** | Ready | SMA crossover, RSI mean-reversion, Bollinger, Volatility breakout |
+| **Comparison demo** | Ready | Run multiple strategies and rank them |
+| Evolutionary / LLM agents | Planned | Next layer |
 
 ---
 
 ## Algo Level Score (0–100)
 
-The system evaluates any strategy / bot on these dimensions:
+| Dimension | Weight | Looks at |
+|-----------|--------|----------|
+| Performance | 25% | Sharpe, Sortino, CAGR, Profit Factor |
+| Robustness | 25% | Walk-forward stability, parameter sensitivity |
+| Risk Control | 20% | Max Drawdown, Ulcer Index |
+| Sophistication | 15% | Regime filters, adaptive sizing, feature depth |
+| Implementation | 15% | Transaction costs, no look-ahead, clean code |
 
-| Dimension | Weight | What it measures |
-|-----------|--------|------------------|
-| **Performance** | 25% | Sharpe, Sortino, Calmar, CAGR, Profit Factor |
-| **Robustness** | 25% | Walk-forward stability, out-of-sample decay, parameter sensitivity |
-| **Risk Control** | 20% | Max Drawdown, Ulcer Index, tail risk, position sizing quality |
-| **Sophistication** | 15% | Feature engineering depth, regime awareness, adaptive logic |
-| **Implementation Quality** | 15% | Code cleanliness, transaction cost realism, no look-ahead bias |
-
-**Final Level Labels:**
-- 90–100 → Elite / Institutional-grade
-- 75–89 → Advanced
-- 60–74 → Intermediate
-- 40–59 → Basic / Retail
-- <40 → Weak / Overfit or broken
+**Labels:** 90+ Elite · 75–89 Advanced · 60–74 Intermediate · 40–59 Basic · <40 Weak/Overfit
 
 ---
 
-## Architecture (High Level)
-
-```
-User Idea / Existing Algo
-        ↓
-┌──────────────────────────────────────────┐
-│  Orchestrator Agent (LLM)                  │
-│  - Plans research DAG                       │
-│  - Decides mutate / combine / pivot        │
-├──────────────────────────────────────────┤
-│  Research Agents                            │
-│  • Hypothesis Generator                     │
-│  • Literature / Idea Miner                  │
-│  • Strategy Coder                           │
-│  • Backtest Runner                          │
-│  • Evaluator & Ranker                       │
-│  • Memory / Experience Store                │
-└───────────────────────────────────────────┘
-        ↓
-Ranked Strategies + Level Scores + Reports
-```
-
----
-
-## Quick Start
+## Quick start
 
 ```bash
 git clone https://github.com/7NSE/Quant-Algorithms-Automated-Developer.git
 cd Quant-Algorithms-Automated-Developer
 
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install numpy pandas rich
 
-# Score an existing strategy
-python -m qaad.score --strategy path/to/your_strategy.py --data path/to/ohlcv.csv
+# Rank a few built-in strategies on synthetic data
+python examples/run_comparison.py
 
-# Generate + evolve new strategies from a natural language idea
-python -m qaad.evolve --idea "Mean reversion on RSI + volume confirmation for crypto" --generations 20
+# Or just the scoring demo
+python -m qaad.score --example
 ```
 
 ---
 
-## Project Structure
+## Project layout
 
 ```
 qaad/
-├── agents/           # LLM agents (orchestrator, coder, evaluator...)
-├── core/             # Backtester, metrics, scoring engine
-├── strategies/       # Generated & example strategies
-├── memory/           # Experience store & trajectory memory
-├── utils/            # Data loaders, helpers
-├── evolve.py         # Evolutionary loop entrypoint
-├── score.py          # Algo level scoring entrypoint
-└── __main__.py
-configs/              # Example research configs
-examples/             # Sample strategies + notebooks
-tests/
+├── core/
+│   ├── metrics.py       # performance & risk numbers
+│   ├── backtester.py    # vectorized backtest engine
+│   └── scoring.py       # Algo Level Score (0-100)
+├── strategies/
+│   ├── base.py          # Strategy abstract class
+│   └── examples.py      # SMA, RSI, Bollinger, Breakout
+├── utils/
+│   └── data.py          # CSV loader + synthetic OHLCV
+├── score.py             # CLI for scoring
+└── evolve.py            # evolutionary loop (scaffold)
+examples/
+└── run_comparison.py    # end-to-end ranking demo
+```
+
+---
+
+## Using it in your own code
+
+```python
+from qaad.utils.data import make_synthetic_ohlcv
+from qaad.strategies import RSIMeanReversion
+from qaad.core.scoring import AlgoLevelScorer
+
+data = make_synthetic_ohlcv(n=1200)
+strat = RSIMeanReversion(period=14, lower=30, upper=70)
+
+bt = strat.run(data, fee_bps=5, slippage_bps=2)
+print(bt.summary())
+
+score = strat.score(data)
+print(f"Level score: {score.total:.1f} → {score.level}")
 ```
 
 ---
 
 ## Roadmap
 
-- [x] Repo + core architecture scaffold
-- [ ] Full scoring engine (metrics + robustness tests)
-- [ ] Multi-agent evolutionary loop
-- [ ] Natural language → strategy code pipeline
+- [x] Metrics + backtester + scoring engine
+- [x] Strategy base class + example strategies
+- [x] End-to-end comparison script
 - [ ] Walk-forward & Monte-Carlo robustness module
-- [ ] Live paper-trading adapter (optional)
-- [ ] Web / CLI dashboard for ranking
+- [ ] Natural-language → strategy code agent
+- [ ] Multi-agent evolutionary loop
+- [ ] Optional live / paper-trading adapter
 
 ---
 
 ## Disclaimer
 
-This is research / educational software.  
+Research / educational software only.  
 Past performance does not guarantee future results.  
-Use at your own risk. Always paper-trade and validate thoroughly before any real capital.
-
----
+Always validate thoroughly before risking real capital.
 
 **Author:** [7NSE](https://github.com/7NSE)  
 **License:** MIT

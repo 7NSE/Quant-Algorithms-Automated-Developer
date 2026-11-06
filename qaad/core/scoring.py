@@ -1,8 +1,8 @@
 """
 Algo Level Scoring Engine
--------------------------
-Scores any quantitative strategy / bot on a 0-100 scale across
-Performance, Robustness, Risk Control, Sophistication, and Implementation Quality.
+
+Takes backtest numbers + a few qualitative signals and turns them
+into a 0-100 score across five dimensions.
 """
 
 from __future__ import annotations
@@ -39,14 +39,12 @@ class ScoreBreakdown:
 
 class AlgoLevelScorer:
     """
-    Scores a strategy based on backtest metrics + qualitative signals.
-
-    Weights (default):
-        Performance      25%
-        Robustness       25%
-        Risk Control     20%
-        Sophistication   15%
-        Implementation   15%
+    Weights:
+        Performance    25%
+        Robustness     25%
+        Risk Control   20%
+        Sophistication 15%
+        Implementation 15%
     """
 
     WEIGHTS = {
@@ -76,19 +74,6 @@ class AlgoLevelScorer:
         sophistication_signals: Optional[Dict[str, float]] = None,
         implementation_signals: Optional[Dict[str, float]] = None,
     ) -> ScoreBreakdown:
-        """
-        Parameters
-        ----------
-        metrics : dict
-            Must contain (or can be None): sharpe, sortino, calmar, cagr,
-            profit_factor, max_drawdown, ulcer_index, win_rate, etc.
-        robustness_metrics : dict, optional
-            e.g. walk_forward_sharpe_ratio, oos_decay, param_sensitivity
-        sophistication_signals : dict, optional
-            e.g. num_features, has_regime_filter, adaptive_sizing, etc. (0-1)
-        implementation_signals : dict, optional
-            e.g. has_transaction_costs, no_lookahead, clean_code (0-1)
-        """
         robustness_metrics = robustness_metrics or {}
         sophistication_signals = sophistication_signals or {}
         implementation_signals = implementation_signals or {}
@@ -107,8 +92,6 @@ class AlgoLevelScorer:
             + impl * self.WEIGHTS["implementation"]
         )
 
-        level = self._label(total)
-
         return ScoreBreakdown(
             performance=perf,
             robustness=rob,
@@ -116,7 +99,7 @@ class AlgoLevelScorer:
             sophistication=soph,
             implementation=impl,
             total=total,
-            level=level,
+            level=self._label(total),
             details={
                 "raw_metrics": metrics,
                 "robustness_metrics": robustness_metrics,
@@ -125,11 +108,16 @@ class AlgoLevelScorer:
             },
         )
 
-    def _score_performance(self, m: Dict[str, float]) -> float:
-        """Map common performance metrics to 0-100."""
-        score = 50.0  # neutral start
+    def _get(self, m: Dict[str, float], *keys, default=0.0):
+        for k in keys:
+            if k in m and m[k] is not None:
+                return m[k]
+        return default
 
-        sharpe = m.get("sharpe") or m.get("Sharpe") or 0.0
+    def _score_performance(self, m: Dict[str, float]) -> float:
+        score = 50.0
+
+        sharpe = self._get(m, "sharpe", "Sharpe")
         if sharpe >= 2.0:
             score += 25
         elif sharpe >= 1.5:
@@ -141,13 +129,13 @@ class AlgoLevelScorer:
         else:
             score -= 15
 
-        sortino = m.get("sortino") or m.get("Sortino") or 0.0
+        sortino = self._get(m, "sortino", "Sortino")
         if sortino >= 2.5:
             score += 10
         elif sortino >= 1.5:
             score += 5
 
-        pf = m.get("profit_factor") or m.get("Profit Factor") or 1.0
+        pf = self._get(m, "profit_factor", "Profit Factor", default=1.0)
         if pf >= 2.0:
             score += 10
         elif pf >= 1.5:
@@ -155,7 +143,7 @@ class AlgoLevelScorer:
         elif pf < 1.0:
             score -= 15
 
-        cagr = m.get("cagr") or m.get("CAGR") or 0.0
+        cagr = self._get(m, "cagr", "CAGR")
         if cagr >= 0.30:
             score += 5
         elif cagr >= 0.15:
@@ -163,13 +151,10 @@ class AlgoLevelScorer:
 
         return float(np.clip(score, 0, 100))
 
-    def _score_robustness(
-        self, m: Dict[str, float], rob: Dict[str, float]
-    ) -> float:
+    def _score_robustness(self, m: Dict[str, float], rob: Dict[str, float]) -> float:
         score = 50.0
 
-        # Walk-forward / OOS ratio
-        wf_ratio = rob.get("walk_forward_ratio") or rob.get("oos_sharpe_ratio") or 0.7
+        wf_ratio = self._get(rob, "walk_forward_ratio", "oos_sharpe_ratio", default=0.7)
         if wf_ratio >= 0.85:
             score += 25
         elif wf_ratio >= 0.70:
@@ -179,8 +164,7 @@ class AlgoLevelScorer:
         else:
             score -= 20
 
-        # Parameter sensitivity (lower is better)
-        sens = rob.get("param_sensitivity") or 0.5
+        sens = self._get(rob, "param_sensitivity", default=0.5)
         if sens < 0.2:
             score += 15
         elif sens < 0.4:
@@ -188,8 +172,7 @@ class AlgoLevelScorer:
         elif sens > 0.7:
             score -= 15
 
-        # Stability of returns
-        if m.get("win_rate", 0.5) > 0.55 and m.get("profit_factor", 1.0) > 1.3:
+        if self._get(m, "win_rate", default=0.5) > 0.55 and self._get(m, "profit_factor", default=1.0) > 1.3:
             score += 5
 
         return float(np.clip(score, 0, 100))
@@ -197,7 +180,7 @@ class AlgoLevelScorer:
     def _score_risk(self, m: Dict[str, float]) -> float:
         score = 50.0
 
-        max_dd = abs(m.get("max_drawdown") or m.get("Max Drawdown") or 0.25)
+        max_dd = abs(self._get(m, "max_drawdown", "Max Drawdown", default=0.25))
         if max_dd <= 0.08:
             score += 25
         elif max_dd <= 0.15:
@@ -207,13 +190,12 @@ class AlgoLevelScorer:
         else:
             score -= 20
 
-        ulcer = m.get("ulcer_index") or 0.0
-        if ulcer > 0 and ulcer < 5:
+        ulcer = self._get(m, "ulcer_index")
+        if 0 < ulcer < 5:
             score += 10
         elif ulcer > 15:
             score -= 10
 
-        # Prefer strategies that don't blow up
         if max_dd > 0.40:
             score -= 15
 
@@ -221,10 +203,10 @@ class AlgoLevelScorer:
 
     def _score_sophistication(self, signals: Dict[str, float]) -> float:
         if not signals:
-            return 40.0  # unknown / basic
+            return 40.0
 
         score = 30.0
-        score += signals.get("num_features", 0) * 3          # more features = higher (capped later)
+        score += signals.get("num_features", 0) * 3
         score += signals.get("has_regime_filter", 0) * 15
         score += signals.get("adaptive_sizing", 0) * 12
         score += signals.get("multi_timeframe", 0) * 10
@@ -254,21 +236,18 @@ class AlgoLevelScorer:
 
 
 def compare_algos(scores: Dict[str, ScoreBreakdown]) -> pd.DataFrame:
-    """Create a ranking table from multiple ScoreBreakdown objects."""
     rows = []
     for name, sb in scores.items():
-        rows.append(
-            {
-                "algo": name,
-                "total": sb.total,
-                "level": sb.level,
-                "performance": sb.performance,
-                "robustness": sb.robustness,
-                "risk_control": sb.risk_control,
-                "sophistication": sb.sophistication,
-                "implementation": sb.implementation,
-            }
-        )
+        rows.append({
+            "algo": name,
+            "total": sb.total,
+            "level": sb.level,
+            "performance": sb.performance,
+            "robustness": sb.robustness,
+            "risk_control": sb.risk_control,
+            "sophistication": sb.sophistication,
+            "implementation": sb.implementation,
+        })
     df = pd.DataFrame(rows).sort_values("total", ascending=False).reset_index(drop=True)
     df.index = df.index + 1
     df.index.name = "rank"

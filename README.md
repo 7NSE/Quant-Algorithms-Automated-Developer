@@ -1,21 +1,23 @@
 # Quant Algorithms Automated Developer (QAAD)
 
-This is a system that builds, backtests, scores and ranks quantitative trading strategies.  
-It can also take an existing strategy (or bot) and give it a 0-100 “Algo Level” score so you can see how strong it actually is.
+Builds, backtests, scores and ranks quantitative trading strategies.  
+Can also take an existing strategy or bot and give it a 0-100 Algo Level score.
 
-### What’s working right now
+### What’s working
 
-- **Metrics engine** — Sharpe, Sortino, CAGR, Max Drawdown, Calmar, Profit Factor, Ulcer Index  
-- **Vectorized backtester** — takes signals → equity curve + trade log (with fees & slippage)  
-- **Algo Level Scorer** — 0–100 score across Performance / Robustness / Risk / Sophistication / Implementation  
-- **Strategy base + a few examples** — SMA crossover, RSI mean-reversion, Bollinger, Volatility breakout  
-- **Comparison demo** — run several strategies side-by-side and rank them  
+- Metrics engine — Sharpe, Sortino, CAGR, MaxDD, Calmar, Profit Factor, Ulcer Index
+- Vectorized backtester — signals → equity curve + trade log (fees & slippage)
+- Algo Level Scorer — 0–100 across Performance / Robustness / Risk / Sophistication / Implementation
+- Strategy base + examples — SMA, RSI, Bollinger, breakout
+- Advanced strategies — regime filters, vol targeting, multi-factor momentum
+- Walk-forward analysis
+- Comparison demos
 
-Evolutionary / LLM agents are still planned.
+Evolutionary / LLM agents still planned.
 
 ### Algo Level Score (0–100)
 
-| Dimension       | Weight | What it looks at                              |
+| Dimension       | Weight | Looks at                                      |
 |-----------------|--------|-----------------------------------------------|
 | Performance     | 25%    | Sharpe, Sortino, CAGR, Profit Factor          |
 | Robustness      | 25%    | Walk-forward stability, parameter sensitivity |
@@ -23,8 +25,7 @@ Evolutionary / LLM agents are still planned.
 | Sophistication  | 15%    | Regime filters, adaptive sizing, feature depth|
 | Implementation  | 15%    | Transaction costs, no look-ahead, clean code  |
 
-**Labels:**  
-90+ Elite · 75–89 Advanced · 60–74 Intermediate · 40–59 Basic · <40 Weak / Overfit
+**Labels:** 90+ Elite · 75–89 Advanced · 60–74 Intermediate · 40–59 Basic · <40 Weak / Overfit
 
 ### Quick start
 
@@ -34,12 +35,15 @@ cd Quant-Algorithms-Automated-Developer
 
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install numpy pandas rich
+pip install -e .
 
-# Rank a few built-in strategies on synthetic data
+# Rank built-in strategies on synthetic data
 python examples/run_comparison.py
 
-# Or just the scoring demo
+# Advanced ranking with walk-forward
+python examples/run_advanced_comparison.py
+
+# Scoring demo only
 python -m qaad.score --example
 ```
 
@@ -48,18 +52,23 @@ python -m qaad.score --example
 ```
 qaad/
 ├── core/
-│   ├── metrics.py       # performance & risk numbers
-│   ├── backtester.py    # vectorized backtest engine
-│   └── scoring.py       # Algo Level Score (0-100)
+│   ├── metrics.py
+│   ├── backtester.py
+│   ├── scoring.py
+│   ├── walkforward.py
+│   ├── regime.py
+│   └── position_sizing.py
 ├── strategies/
-│   ├── base.py          # Strategy abstract class
-│   └── examples.py      # SMA, RSI, Bollinger, Breakout
+│   ├── base.py
+│   ├── examples.py
+│   └── advanced.py
 ├── utils/
-│   └── data.py          # CSV loader + synthetic OHLCV
-├── score.py             # CLI for scoring
-└── evolve.py            # evolutionary loop (scaffold)
+│   └── data.py
+├── score.py
+└── evolve.py          # scaffold
 examples/
-└── run_comparison.py    # end-to-end ranking demo
+├── run_comparison.py
+└── run_advanced_comparison.py
 ```
 
 ### Using it in your own code
@@ -67,7 +76,6 @@ examples/
 ```python
 from qaad.utils.data import make_synthetic_ohlcv
 from qaad.strategies import RSIMeanReversion
-from qaad.core.scoring import AlgoLevelScorer
 
 data = make_synthetic_ohlcv(n=1200)
 strat = RSIMeanReversion(period=14, lower=30, upper=70)
@@ -81,19 +89,20 @@ print(f"Level score: {score.total:.1f} → {score.level}")
 
 ### Roadmap
 
-- [x] Metrics + backtester + scoring engine  
-- [x] Strategy base class + example strategies  
-- [x] End-to-end comparison script  
-- [ ] Walk-forward & Monte-Carlo robustness module  
-- [ ] Natural-language → strategy code agent  
-- [ ] Multi-agent evolutionary loop  
-- [ ] Optional live / paper-trading adapter  
+- [x] Metrics + backtester + scoring
+- [x] Strategy base + examples
+- [x] Walk-forward module
+- [x] Comparison scripts
+- [ ] Monte-Carlo robustness
+- [ ] Natural-language → strategy code agent
+- [ ] Multi-agent evolutionary loop
+- [ ] Live / paper-trading adapter
 
 ### Disclaimer
 
-Research / educational software only.  
+Research / educational only.  
 Past performance does not guarantee future results.  
-Always validate thoroughly before risking real capital.
+Validate thoroughly before risking real capital.
 
 **Author:** [7NSE](https://github.com/7NSE)  
 **License:** MIT

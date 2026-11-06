@@ -1,39 +1,32 @@
 # Quant Algorithms Automated Developer (QAAD)
 
-**Agentic system that develops, backtests, scores and ranks quantitative trading algorithms.**
+This is a system that builds, backtests, scores and ranks quantitative trading strategies.  
+It can also take an existing strategy (or bot) and give it a 0-100 “Algo Level” score so you can see how strong it actually is.
 
-It can also score the sophistication / strength of any existing quant algo or bot so you can see which ones are actually stronger.
+### What’s working right now
 
----
+- **Metrics engine** — Sharpe, Sortino, CAGR, Max Drawdown, Calmar, Profit Factor, Ulcer Index  
+- **Vectorized backtester** — takes signals → equity curve + trade log (with fees & slippage)  
+- **Algo Level Scorer** — 0–100 score across Performance / Robustness / Risk / Sophistication / Implementation  
+- **Strategy base + a few examples** — SMA crossover, RSI mean-reversion, Bollinger, Volatility breakout  
+- **Comparison demo** — run several strategies side-by-side and rank them  
 
-## What works right now
+Evolutionary / LLM agents are still planned.
 
-| Module | Status | What it does |
-|--------|--------|--------------|
-| **Metrics engine** | Ready | Sharpe, Sortino, CAGR, MaxDD, Calmar, Profit Factor, Ulcer Index |
-| **Vectorized backtester** | Ready | Signal → equity curve + trade log with fees & slippage |
-| **Algo Level Scorer** | Ready | 0–100 score across Performance / Robustness / Risk / Sophistication / Implementation |
-| **Strategy base + examples** | Ready | SMA crossover, RSI mean-reversion, Bollinger, Volatility breakout |
-| **Comparison demo** | Ready | Run multiple strategies and rank them |
-| Evolutionary / LLM agents | Planned | Next layer |
+### Algo Level Score (0–100)
 
----
+| Dimension       | Weight | What it looks at                              |
+|-----------------|--------|-----------------------------------------------|
+| Performance     | 25%    | Sharpe, Sortino, CAGR, Profit Factor          |
+| Robustness      | 25%    | Walk-forward stability, parameter sensitivity |
+| Risk Control    | 20%    | Max Drawdown, Ulcer Index                     |
+| Sophistication  | 15%    | Regime filters, adaptive sizing, feature depth|
+| Implementation  | 15%    | Transaction costs, no look-ahead, clean code  |
 
-## Algo Level Score (0–100)
+**Labels:**  
+90+ Elite · 75–89 Advanced · 60–74 Intermediate · 40–59 Basic · <40 Weak / Overfit
 
-| Dimension | Weight | Looks at |
-|-----------|--------|----------|
-| Performance | 25% | Sharpe, Sortino, CAGR, Profit Factor |
-| Robustness | 25% | Walk-forward stability, parameter sensitivity |
-| Risk Control | 20% | Max Drawdown, Ulcer Index |
-| Sophistication | 15% | Regime filters, adaptive sizing, feature depth |
-| Implementation | 15% | Transaction costs, no look-ahead, clean code |
-
-**Labels:** 90+ Elite · 75–89 Advanced · 60–74 Intermediate · 40–59 Basic · <40 Weak/Overfit
-
----
-
-## Quick start
+### Quick start
 
 ```bash
 git clone https://github.com/7NSE/Quant-Algorithms-Automated-Developer.git
@@ -50,9 +43,7 @@ python examples/run_comparison.py
 python -m qaad.score --example
 ```
 
----
-
-## Project layout
+### Project layout
 
 ```
 qaad/
@@ -71,9 +62,7 @@ examples/
 └── run_comparison.py    # end-to-end ranking demo
 ```
 
----
-
-## Using it in your own code
+### Using it in your own code
 
 ```python
 from qaad.utils.data import make_synthetic_ohlcv
@@ -90,21 +79,17 @@ score = strat.score(data)
 print(f"Level score: {score.total:.1f} → {score.level}")
 ```
 
----
+### Roadmap
 
-## Roadmap
+- [x] Metrics + backtester + scoring engine  
+- [x] Strategy base class + example strategies  
+- [x] End-to-end comparison script  
+- [ ] Walk-forward & Monte-Carlo robustness module  
+- [ ] Natural-language → strategy code agent  
+- [ ] Multi-agent evolutionary loop  
+- [ ] Optional live / paper-trading adapter  
 
-- [x] Metrics + backtester + scoring engine
-- [x] Strategy base class + example strategies
-- [x] End-to-end comparison script
-- [ ] Walk-forward & Monte-Carlo robustness module
-- [ ] Natural-language → strategy code agent
-- [ ] Multi-agent evolutionary loop
-- [ ] Optional live / paper-trading adapter
-
----
-
-## Disclaimer
+### Disclaimer
 
 Research / educational software only.  
 Past performance does not guarantee future results.  

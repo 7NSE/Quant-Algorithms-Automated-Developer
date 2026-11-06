@@ -1,8 +1,8 @@
 """
 Lightweight vectorized backtester.
 
-Takes a signal series (-1 / 0 / 1) and OHLCV data, returns equity curve +
-metrics + a simple trade log. Easy to read and extend.
+Signal in, equity curve + metrics + trade log out.
+Works with discrete (-1/0/1) or continuous position weights.
 """
 
 from __future__ import annotations
@@ -52,12 +52,11 @@ def run_backtest(
     price_col: str = "close",
 ) -> BacktestResult:
     """
-    Position-based backtest.
+    Basic position-based backtest.
 
-    signal should align with data.index and contain values in {-1, 0, 1}
-    (or continuous weights for partial exposure).
-
-    Costs are charged on every change in position size.
+    signal can be -1/0/1 or continuous weights.
+    We shift by 1 bar so there's no look-ahead.
+    Costs hit every time position size changes.
     """
     if price_col not in data.columns:
         raise ValueError(f"Column '{price_col}' not found in data")
@@ -65,17 +64,19 @@ def run_backtest(
     price = data[price_col].astype(float)
     sig = signal.reindex(price.index).fillna(0.0).astype(float)
 
-    # trade on next bar — avoids look-ahead
+    # next-bar execution
     position = sig.shift(1).fillna(0.0)
 
     raw_ret = price.pct_change().fillna(0.0)
     strat_ret = position * raw_ret
 
-    pos_change = position.diff().abs().fillna(0.0)
-    cost = pos_change * (fee_bps + slippage_bps) / 10_000.0
+    # cost on turnover
+    turnover = position.diff().abs().fillna(0.0)
+    cost = turnover * (fee_bps + slippage_bps) / 10_000.0
     strat_ret = strat_ret - cost
 
-    equity = (1.0 + strat_ret).cumprod() * initial_capital
+    equity = initial_capital * (1.0 + strat_ret).cumprod()
+    # first bar has no return yet
     equity.iloc[0] = initial_capital
 
     metrics = full_metrics(equity, periods=periods_per_year)
@@ -97,37 +98,52 @@ def run_backtest(
 
 
 def _extract_trades(position: pd.Series, price: pd.Series) -> pd.DataFrame:
+    """
+    Build a simple trade log.
+
+    For continuous weights we treat any meaningful size change
+    (crossing zero or flipping sign) as an exit/entry.
+    Small noise in vol-targeted weights is ignored.
+    """
     records = []
     in_trade = False
     entry_time = None
     entry_price = None
     direction = 0
+    min_size = 0.05  # ignore tiny residual weights
 
     for t, pos in position.items():
-        if not in_trade and pos != 0:
-            in_trade = True
-            entry_time = t
-            entry_price = float(price.loc[t])
-            direction = 1 if pos > 0 else -1
-        elif in_trade and (pos == 0 or np.sign(pos) != direction):
-            exit_price = float(price.loc[t])
-            pnl = (exit_price / entry_price - 1.0) * direction
-            records.append(
-                {
+        size = abs(pos)
+
+        if not in_trade:
+            if size >= min_size:
+                in_trade = True
+                entry_time = t
+                entry_price = float(price.loc[t])
+                direction = 1 if pos > 0 else -1
+        else:
+            flipped = np.sign(pos) != direction and size >= min_size
+            closed = size < min_size
+
+            if flipped or closed:
+                exit_price = float(price.loc[t])
+                pnl = (exit_price / entry_price - 1.0) * direction
+                records.append({
                     "entry_time": entry_time,
                     "exit_time": t,
                     "direction": "long" if direction > 0 else "short",
                     "entry_price": entry_price,
                     "exit_price": exit_price,
                     "pnl_pct": pnl,
-                }
-            )
-            if pos != 0:
-                entry_time = t
-                entry_price = exit_price
-                direction = 1 if pos > 0 else -1
-                in_trade = True
-            else:
-                in_trade = False
+                })
+
+                if flipped:
+                    # immediately open the other side
+                    entry_time = t
+                    entry_price = exit_price
+                    direction = 1 if pos > 0 else -1
+                    in_trade = True
+                else:
+                    in_trade = False
 
     return pd.DataFrame(records)

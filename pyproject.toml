@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qaad"
+version = "0.1.0"
+description = "Backtest, score and rank quantitative trading strategies"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "7NSE"}]
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+data = ["yfinance>=0.2.40"]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["qaad*"]

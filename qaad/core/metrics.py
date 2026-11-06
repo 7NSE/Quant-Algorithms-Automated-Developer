@@ -1,8 +1,8 @@
 """
 Performance & risk metrics.
 
-Simple, readable functions that most quant researchers actually use
-when deciding whether a strategy is worth keeping.
+Just the numbers most people actually look at when deciding
+whether a strategy is worth keeping.
 """
 
 from __future__ import annotations
@@ -14,6 +14,13 @@ import pandas as pd
 
 def _clean(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce").dropna()
+
+
+def _safe(val: float, cap: float = 50.0) -> float:
+    """Stop inf / nan from blowing up later scoring."""
+    if val is None or np.isnan(val) or np.isinf(val):
+        return cap if (val and val > 0) else 0.0
+    return float(np.clip(val, -cap, cap))
 
 
 def compute_returns(equity: pd.Series) -> pd.Series:
@@ -29,7 +36,7 @@ def sharpe_ratio(returns: pd.Series, periods: int = 252, risk_free: float = 0.0)
     vol = excess.std()
     if vol == 0 or np.isnan(vol):
         return 0.0
-    return float(np.sqrt(periods) * excess.mean() / vol)
+    return _safe(np.sqrt(periods) * excess.mean() / vol)
 
 
 def sortino_ratio(returns: pd.Series, periods: int = 252, risk_free: float = 0.0) -> float:
@@ -39,11 +46,12 @@ def sortino_ratio(returns: pd.Series, periods: int = 252, risk_free: float = 0.0
     excess = r - risk_free / periods
     downside = excess[excess < 0]
     if len(downside) == 0:
-        return float("inf") if excess.mean() > 0 else 0.0
+        # no losing days — still return something finite
+        return 10.0 if excess.mean() > 0 else 0.0
     down_std = downside.std()
     if down_std == 0 or np.isnan(down_std):
         return 0.0
-    return float(np.sqrt(periods) * excess.mean() / down_std)
+    return _safe(np.sqrt(periods) * excess.mean() / down_std)
 
 
 def max_drawdown(equity: pd.Series) -> float:
@@ -70,8 +78,8 @@ def calmar_ratio(equity: pd.Series, periods: int = 252) -> float:
     growth = cagr(equity, periods)
     mdd = max_drawdown(equity)
     if mdd == 0:
-        return float("inf") if growth > 0 else 0.0
-    return float(growth / mdd)
+        return 10.0 if growth > 0 else 0.0
+    return _safe(growth / mdd)
 
 
 def profit_factor(returns: pd.Series) -> float:
@@ -79,8 +87,8 @@ def profit_factor(returns: pd.Series) -> float:
     gains = r[r > 0].sum()
     losses = abs(r[r < 0].sum())
     if losses == 0:
-        return float("inf") if gains > 0 else 0.0
-    return float(gains / losses)
+        return 10.0 if gains > 0 else 0.0
+    return _safe(gains / losses, cap=20.0)
 
 
 def win_rate(returns: pd.Series) -> float:
@@ -91,7 +99,7 @@ def win_rate(returns: pd.Series) -> float:
 
 
 def ulcer_index(equity: pd.Series) -> float:
-    """How painful the drawdowns feel (depth + duration). Lower is better."""
+    # depth + duration of drawdowns. lower is better.
     eq = _clean(equity)
     if len(eq) < 2:
         return 0.0
@@ -101,8 +109,11 @@ def ulcer_index(equity: pd.Series) -> float:
 
 
 def full_metrics(equity: pd.Series, periods: int = 252, risk_free: float = 0.0) -> Dict[str, float]:
-    """Everything in one dict so the scorer can consume it easily."""
     returns = compute_returns(equity)
+    total_ret = 0.0
+    if len(equity) > 1 and equity.iloc[0] != 0:
+        total_ret = float(equity.iloc[-1] / equity.iloc[0] - 1)
+
     return {
         "sharpe": sharpe_ratio(returns, periods, risk_free),
         "sortino": sortino_ratio(returns, periods, risk_free),
@@ -112,7 +123,7 @@ def full_metrics(equity: pd.Series, periods: int = 252, risk_free: float = 0.0) 
         "profit_factor": profit_factor(returns),
         "win_rate": win_rate(returns),
         "ulcer_index": ulcer_index(equity),
-        "total_return": float(equity.iloc[-1] / equity.iloc[0] - 1) if len(equity) > 1 else 0.0,
+        "total_return": total_ret,
         "n_periods": float(len(returns)),
     }
 

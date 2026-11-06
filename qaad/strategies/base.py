@@ -1,8 +1,7 @@
 """
 Base class for strategies.
 
-Every strategy just needs to implement `generate_signals`.
-The rest of the pipeline (backtest, score, rank) stays the same.
+Just implement generate_signals and the rest of the pipeline works.
 """
 
 from __future__ import annotations
@@ -16,28 +15,16 @@ from qaad.core.scoring import AlgoLevelScorer, ScoreBreakdown
 
 
 class Strategy(ABC):
-    """
-    Minimal interface.
-
-    Subclass this, implement generate_signals, and you can plug the strategy
-    straight into the backtester and scorer.
-    """
-
     name: str = "unnamed"
-    params: Dict[str, Any] = {}
 
     def __init__(self, **params):
-        self.params = params
-        # allow subclasses to set a nicer display name
         if "name" in params:
             self.name = params.pop("name")
+        self.params = params
 
     @abstractmethod
     def generate_signals(self, data: pd.DataFrame) -> pd.Series:
-        """
-        Return a Series aligned with data.index.
-        Values should be roughly in {-1, 0, 1} or continuous weights.
-        """
+        """Return signal series aligned with data.index (-1/0/1 or continuous)."""
         ...
 
     def run(
@@ -69,7 +56,7 @@ class Strategy(ABC):
         result = self.run(data, **backtest_kwargs)
         scorer = AlgoLevelScorer()
 
-        # sensible defaults if caller doesn't supply extra signals
+        # defaults if nothing passed in
         soph = sophistication_signals or {
             "num_features": 2,
             "has_regime_filter": 0.0,
